@@ -44,5 +44,5 @@ It provides a centralized platform to manage **students, staff, fees, and librar
 ## 🛠️ Setup Instructions
 1. Clone the repo  
    ```bash
-   git clone https://github.com/your-username/student_management.git
+   git clone https://github.com/jitheshks/student_management.git
    cd student_management

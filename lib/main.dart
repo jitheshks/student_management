@@ -47,13 +47,12 @@ import 'package:student_management/view/screens/otp_verification_screen/otp_veri
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: ".env");
 
   await Supabase.initialize(
-  
-    url: "https://zvjtpchswsvedrhgomqr.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2anRwY2hzd3N2ZWRyaGdvbXFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEwNzkyMjIsImV4cCI6MjA1NjY1NTIyMn0.q_oHTxt2VqCW8BXNEIaVidNchilMos4AuN-HWtkgixc",
-    authOptions: FlutterAuthClientOptions(detectSessionInUri: false),
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANONKEY']!,
+   authOptions: FlutterAuthClientOptions(detectSessionInUri: false),
   );
 
   runApp(const MyApp());
