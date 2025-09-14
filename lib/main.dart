@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:student_management/controller/create_new_password_controller.dart';
 import 'package:student_management/services/nav_service.dart';
+import 'package:student_management/view/screens/create_new_password_screen/create_new_password_screen.dart';
 
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -239,6 +241,10 @@ class MyApp extends StatelessWidget {
   );
 },
 
+'/createNewPassword': (context) => ChangeNotifierProvider(
+  create: (_) => CreateNewPasswordController(),
+  child: const CreateNewPasswordScreen(),
+),
 
 
         },
