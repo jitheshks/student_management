@@ -1,5 +1,5 @@
 // lib/controller/student_library_controller.dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StudentLibraryItem {
@@ -25,7 +25,10 @@ class StudentLibraryItem {
 }
 
 class StudentLibraryController with ChangeNotifier {
-  final SupabaseClient supabase = Supabase.instance.client;
+  final SupabaseClient? _supabase;
+  SupabaseClient get supabase => _supabase ?? Supabase.instance.client;
+
+  StudentLibraryController({SupabaseClient? supabase}) : _supabase = supabase;
 
   bool loading = false;
   String? error;
@@ -51,46 +54,50 @@ class StudentLibraryController with ChangeNotifier {
         )
       ''';
 
-      final PostgrestFilterBuilder base =
-          supabase.from('borrow_records').select(cols);
+      final PostgrestFilterBuilder base = supabase
+          .from('borrow_records')
+          .select(cols);
 
-      final PostgrestFilterBuilder filtered = filterByUserId
-          ? base.eq('user_id', id)
-          : base.eq('student_id', id);
+      final PostgrestFilterBuilder filtered =
+          filterByUserId ? base.eq('user_id', id) : base.eq('student_id', id);
 
       final data = await filtered.order('borrowed_at', ascending: false);
 
       final now = DateTime.now();
-      items = (data as List).map((r) {
-        final borrowedAt =
-            DateTime.tryParse(r['borrowed_at']?.toString() ?? '') ?? now;
-        final returnedAt = r['returned_at'] != null
-            ? DateTime.tryParse(r['returned_at'].toString())
-            : null;
-        final dueDate = r['due_date'] != null
-            ? DateTime.tryParse(r['due_date'].toString())
-            : null;
+      items =
+          (data as List).map((r) {
+            final borrowedAt =
+                DateTime.tryParse(r['borrowed_at']?.toString() ?? '') ?? now;
+            final returnedAt =
+                r['returned_at'] != null
+                    ? DateTime.tryParse(r['returned_at'].toString())
+                    : null;
+            final dueDate =
+                r['due_date'] != null
+                    ? DateTime.tryParse(r['due_date'].toString())
+                    : null;
 
-        final status = returnedAt != null
-            ? 'returned'
-            : (dueDate != null && dueDate.isBefore(now))
-                ? 'overdue'
-                : 'borrowed';
+            final status =
+                returnedAt != null
+                    ? 'returned'
+                    : (dueDate != null && dueDate.isBefore(now))
+                    ? 'overdue'
+                    : 'borrowed';
 
-        // ✅ Book details come from embedded "books"
-        final books = (r['books'] as Map?) ?? const {};
+            // ✅ Book details come from embedded "books"
+            final books = (r['books'] as Map?) ?? const {};
 
-        return StudentLibraryItem(
-          id: r['id'].toString(),
-          coverUrl: (books['cover_url'] as String?)?.trim() ?? '',
-          title: (books['title'] as String?)?.trim() ?? '',
-          author: (books['author'] as String?)?.trim() ?? '',
-          borrowedAt: borrowedAt,
-          returnedAt: returnedAt,
-          dueDate: dueDate,
-          status: status,
-        );
-      }).toList();
+            return StudentLibraryItem(
+              id: r['id'].toString(),
+              coverUrl: (books['cover_url'] as String?)?.trim() ?? '',
+              title: (books['title'] as String?)?.trim() ?? '',
+              author: (books['author'] as String?)?.trim() ?? '',
+              borrowedAt: borrowedAt,
+              returnedAt: returnedAt,
+              dueDate: dueDate,
+              status: status,
+            );
+          }).toList();
     } on PostgrestException catch (e) {
       error = e.message;
     } catch (e) {

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LibraryService {
@@ -26,11 +26,12 @@ class LibraryService {
     }
 
     try {
-      final url = Uri.parse(apiUrl);
-      final response = await http.get(url);
+      final dio = Dio();
+      final response = await dio.get(apiUrl);
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final dynamic raw = response.data;
+        final data = raw is String ? json.decode(raw) : raw;
 
         if (isbn != null && isbn.isNotEmpty) {
           // ISBN endpoint shape: {"ISBN:xxxx": {...}}

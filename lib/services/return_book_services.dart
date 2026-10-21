@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReturnBookService {
-  final SupabaseClient supabase = Supabase.instance.client;
+  final SupabaseClient supabase;
+
+  ReturnBookService({SupabaseClient? supabase})
+      : supabase = supabase ?? Supabase.instance.client;
 
   /// Fetch all currently borrowed books (not yet returned) for a given register number
   
@@ -32,17 +35,16 @@ class ReturnBookService {
           .filter('returned_at', 'is', null)
           .order('borrowed_at', ascending: false);
 
-      print('🔥 Supabase response for $registerNumber: $response');
-      if (response.isEmpty) {
-        print('No borrowed books found for $registerNumber');
-      } else {
-        print('Sample record: ${response[0]}');
-      }
+      debugPrint(
+        '>>> [ReturnBookService] Fetched ${response.length} borrowed book records',
+      );
 
       return List<Map<String, dynamic>>.from(response);
-    } catch (e, st) {
-      debugPrint('❌ Error fetching borrowed books: $e');
-      debugPrint('Stacktrace: $st');
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [ReturnBookService] Postgrest error fetching borrowed books [${e.code}]: ${e.message}');
+      return [];
+    } catch (e) {
+      debugPrint('❌ [ReturnBookService] Error fetching borrowed books: ${e.runtimeType}');
       return [];
     }
   }
@@ -71,13 +73,8 @@ class ReturnBookService {
           .eq('id', borrowRecordId)
           .select('id');
 
-      print('borrow_records update: $updateResponse');
-
-      if (updateResponse is List && updateResponse.isEmpty) {
+      if (updateResponse.isEmpty) {
         debugPrint('❌ No borrow record updated for id $borrowRecordId');
-        return false;
-      } else if (updateResponse == null) {
-        debugPrint('❌ Null response from Supabase update (unexpected)');
         return false;
       }
 
@@ -89,8 +86,6 @@ class ReturnBookService {
               .select('copies')
               .eq('id', bookId)
               .maybeSingle();
-
-      print('book record: $bookRecord');
 
       if (bookRecord == null) {
         debugPrint('❌ Book record not found for ID $bookId');
@@ -108,21 +103,18 @@ class ReturnBookService {
           .eq('id', bookId)
           .select('id');
 
-      print('update books response: $updateCopiesResponse');
-
-      if (updateCopiesResponse is List && updateCopiesResponse.isEmpty) {
+      if (updateCopiesResponse.isEmpty) {
         debugPrint('❌ No book copies updated for book ID $bookId');
-        return false;
-      } else if (updateCopiesResponse == null) {
-        debugPrint('❌ Null response from Supabase book update (unexpected)');
         return false;
       }
 
       debugPrint('✅ Book returned and copies incremented to $newCopies');
       return true;
-    } catch (e, stacktrace) {
-      debugPrint('❌ Error in returnBook: $e');
-      debugPrint('$stacktrace');
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [ReturnBookService] Postgrest error in returnBook [${e.code}]: ${e.message}');
+      return false;
+    } catch (e) {
+      debugPrint('❌ [ReturnBookService] Error in returnBook: ${e.runtimeType}');
       return false;
     }
   }

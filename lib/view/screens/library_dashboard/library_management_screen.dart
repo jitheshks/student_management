@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:student_management/common/widgets/management_grid.dart';
 
 class LibraryManagement extends StatelessWidget {
@@ -40,7 +41,7 @@ class LibraryManagement extends StatelessWidget {
             return ManagementOption(
               label: label,
               icon: o['icon'] as IconData,
-              onTap: () => Navigator.pushNamed(context, o['route'] as String),
+              onTap: () => context.push(o['route'] as String),
               gradient: _libraryGradientFor(label),
               // subtitle: 'Open', // optional override
             );

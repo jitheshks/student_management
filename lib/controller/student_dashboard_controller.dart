@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:student_management/controller/base_dashboard_controller.dart';
 
 class StudentDashboardController extends BaseDashboardController {

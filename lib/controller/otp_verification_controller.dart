@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class OtpVerificationController with ChangeNotifier {
@@ -90,7 +91,7 @@ class OtpVerificationController with ChangeNotifier {
 
       if (!context.mounted) return;
       // Navigate to the screen where the new password will be set
-      Navigator.pushReplacementNamed(context, '/createNewPassword');
+      context.go('/createNewPassword');
     } on AuthException catch (e) {
       onError(e.message);
     } catch (e) {

@@ -1,6 +1,6 @@
 // lib/controller/student_management_controller.dart
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:student_management/controller/base_controller.dart';
 import 'package:student_management/model/student_model.dart';
 import 'package:student_management/services/student_services.dart';
@@ -162,12 +162,17 @@ Future<void> deleteUser(String studentRowId, String userId) async {
             } else {
               fail++;
             }
-          } catch (_) {
+          } catch (e) {
+            debugPrint('⚠️ [StudentManagementController] Bulk delete failed for ${user.id}: $e');
             fail++;
           }
         }).toList();
 
         await Future.wait(chunk);
+      }
+
+      if (fail > 0) {
+        errorMessage = 'Failed to delete $fail student(s). Students with active book loans cannot be deleted until books are returned.';
       }
 
       selectedItems.clear(); // clear selections after bulk delete

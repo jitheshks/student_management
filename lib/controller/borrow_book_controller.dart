@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:student_management/model/student_model.dart';
 import 'package:student_management/services/borrow_book_services.dart';
 import 'package:student_management/services/student_services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -99,19 +99,17 @@ class BorrowBookController with ChangeNotifier {
     final isISBN = RegExp(r'^\d{10,13}$').hasMatch(query);
     final url =
         isISBN
-            ? Uri.parse(
-              'https://openlibrary.org/api/books?bibkeys=ISBN:$query&format=json&jscmd=data',
-            )
-            : Uri.parse(
-              'https://openlibrary.org/search.json?q=$query&limit=10',
-            );
+            ? 'https://openlibrary.org/api/books?bibkeys=ISBN:$query&format=json&jscmd=data'
+            : 'https://openlibrary.org/search.json?q=$query&limit=10';
 
-    final response = await http.get(url);
+    final dio = Dio();
+    final response = await dio.get(url);
     List<Map<String, dynamic>> bookList = [];
 
     if (response.statusCode == 200) {
+      final dynamic raw = response.data;
+      final dynamic data = raw is String ? json.decode(raw) : raw;
       if (isISBN) {
-        final data = json.decode(response.body);
         final bookData = data['ISBN:$query'];
 
         if (bookData != null) {
@@ -126,8 +124,7 @@ class BorrowBookController with ChangeNotifier {
           });
         }
       } else {
-        final data = json.decode(response.body);
-        List booksData = data['docs'];
+        final List booksData = (data is Map && data['docs'] is List) ? (data['docs'] as List) : [];
         for (var book in booksData) {
           String title = book['title'] ?? 'Unknown Title';
           String author = book['author_name']?.first ?? 'Unknown Author';
@@ -168,10 +165,10 @@ class BorrowBookController with ChangeNotifier {
     final student = await studentService.fetchStudentByRegister(registerNumber);
     if (student != null) {
       _studentDetails = student;
-      print("✅ Found student: $_studentDetails");
+      debugPrint("✅ Found student record");
     } else {
       _studentDetails = null; // MAIN FIX: Don't use {}
-      print("❌ No student found for register number: $registerNumber");
+      debugPrint("❌ No student found for register number query");
     }
     _isFetchingStudent = false;
     safeNotify();

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -110,7 +110,7 @@ class StudentFormPageController extends ChangeNotifier {
           .from('profile_pictures')
           .getPublicUrl(fileName);
     } catch (e) {
-      debugPrint('Error uploading profile image: $e');
+      debugPrint('Error uploading profile image: ${e.runtimeType}');
       return null;
     }
   }
@@ -219,7 +219,7 @@ class StudentFormPageController extends ChangeNotifier {
       }
 
       // Step 1: Check if email already exists in `users` or `students`
-      print('🔎 [createStudent] Checking for existing email: $email');
+      debugPrint('🔎 [createStudent] Checking for existing email');
 
       final existingUser =
           await supabase
@@ -243,24 +243,21 @@ class StudentFormPageController extends ChangeNotifier {
         return;
       }
 
-      // Step 2: Sign up user in Supabase Auth
+      // Step 2: Sign up user in Supabase Auth safely (NO signInWithPassword to prevent session hijacking)
       final password = "$firstName@${dobInput.split('/').last}";
-      print('🔐 [createStudent] Signing up user with email: $email');
+      debugPrint('🔐 [createStudent] Signing up student user account');
 
-      await supabase.auth.signUp(email: email, password: password);
-
-      // Step 3: Sign in to get user ID and session
-      final loginResponse = await supabase.auth.signInWithPassword(
+      final signUpResponse = await supabase.auth.signUp(
         email: email,
         password: password,
+        data: {'role': 'student'},
       );
 
-      if (loginResponse.user == null || loginResponse.session == null) {
-        throw Exception("Login failed after sign up.");
+      final newStudentId = signUpResponse.user?.id;
+      if (newStudentId == null) {
+        throw Exception("Failed to obtain user ID after sign up.");
       }
-
-      final newStudentId = loginResponse.user!.id;
-      print('✅ [createStudent] Signed in. New student ID: $newStudentId');
+      debugPrint('✅ [createStudent] Created Auth user safely');
 
       // Step 4: Double-check students table by ID
       final studentCheck =
@@ -276,7 +273,7 @@ class StudentFormPageController extends ChangeNotifier {
       }
 
       // Step 5: Insert into `users` table
-      print('📥 [createStudent] Inserting into `users` table...');
+      debugPrint('📥 [createStudent] Inserting into `users` table...');
       await supabase.from('users').insert({
         'id': newStudentId,
         'email': email,
@@ -285,7 +282,7 @@ class StudentFormPageController extends ChangeNotifier {
 
       // Step 6: Generate register number
       final registerNumber = await _generateUniqueRegisterNumber();
-      print('🆔 [createStudent] Generated register number: $registerNumber');
+      debugPrint('🆔 [createStudent] Generated sequential register number');
 
    // Step 7: Insert into `students` table
 print('📥 [createStudent] Inserting into students table...');
@@ -320,7 +317,13 @@ await supabase.from('students').insert({
       print('✅ [createStudent] Form reset and done.');
     } catch (e) {
       final err = e.toString();
-      print('❌ [createStudent] Error: $err');
+      if (e is PostgrestException) {
+        debugPrint('❌ [createStudent] Postgrest error [${e.code}]: ${e.message}');
+      } else if (e is AuthException) {
+        debugPrint('❌ [createStudent] Auth error: ${e.message}');
+      } else {
+        debugPrint('❌ [createStudent] Unexpected error: ${e.runtimeType}');
+      }
 
       if (err.contains('User already registered') ||
           err.contains('duplicate key value') ||
@@ -360,7 +363,7 @@ await supabase.from('students').insert({
       debugPrint("Invalid studentData type provided to loadStudentData.");
       return;
     }
-    debugPrint("Loaded Student Data: $student");
+    debugPrint("Loaded Student Data successfully.");
 
     studentId = student.id;
     firstNameController.text = student.firstName;
@@ -416,7 +419,7 @@ await supabase.from('students').insert({
       'profile_image_url': profileImageUrl,
     };
 
-    debugPrint("Updating student with data: $updatedData");
+    debugPrint("Updating student record with validated fields");
     await Supabase.instance.client
         .from('students')
         .update(updatedData)

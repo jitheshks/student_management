@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:student_management/common/widgets/sort_filter_widget.dart';
 import 'package:student_management/controller/staff_management_controller.dart';
@@ -103,7 +104,7 @@ class UserManagementScreen<T extends ChangeNotifier> extends StatelessWidget {
                   debugPrint('>>> Deleting staff: ${user.id}');
                   await c.deleteUser(user.id, user.authId);
                   success++;
-                } else if (user is StudentModel && (user.userId?.isNotEmpty ?? false)) {
+                } else if (user is StudentModel && user.userId.isNotEmpty) {
                   debugPrint('>>> Deleting student: ${user.id}');
                   await c.deleteUser(user.id, user.userId);
                   success++;
@@ -303,12 +304,11 @@ class UserManagementScreen<T extends ChangeNotifier> extends StatelessWidget {
 
                           return InkWell(
                             onTap: () {
-                              Navigator.pushNamed(
-                                context,
+                              context.push(
                                 formRoute,
-                                arguments: {
+                                extra: {
                                   'data': user.toJson(),
-                                  'role': userType
+                                  'role': userType,
                                 },
                               ).then((value) {
                                 if (value == true && context.mounted) {
@@ -428,10 +428,9 @@ class UserManagementScreen<T extends ChangeNotifier> extends StatelessWidget {
       onPressed: busy
           ? null
           : () async {
-              final result = await Navigator.pushNamed(
-                context,
+              final result = await context.push(
                 formRoute,
-                arguments: {'data': null, 'role': userType},
+                extra: {'data': null, 'role': userType},
               );
               if (result == true && context.mounted) {
                 controller.fetchUsers();

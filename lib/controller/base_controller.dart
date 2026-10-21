@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 mixin BaseController<T> on ChangeNotifier {
   bool isLoading = false;

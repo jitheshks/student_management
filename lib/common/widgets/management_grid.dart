@@ -1,4 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:student_management/core/constants/app_radius.dart';
+import 'package:student_management/core/constants/app_spacing.dart';
+import 'package:student_management/core/theme/app_colors.dart';
+import 'package:student_management/shared/widgets/app_card.dart';
 
 /// Model for a single management option tile
 class ManagementOption {
@@ -6,7 +10,7 @@ class ManagementOption {
   final IconData icon;
   final VoidCallback onTap;
   final List<Color> gradient;
-  final String? subtitle; // optional
+  final String? subtitle;
 
   const ManagementOption({
     required this.label,
@@ -17,8 +21,7 @@ class ManagementOption {
   });
 }
 
-
-/// Reusable Grid that arranges ManagementCards
+/// Reusable responsive Grid that arranges ManagementCards
 class ManagementGrid extends StatelessWidget {
   final List<ManagementOption> options;
   final EdgeInsetsGeometry padding;
@@ -26,37 +29,65 @@ class ManagementGrid extends StatelessWidget {
   const ManagementGrid({
     super.key,
     required this.options,
-    this.padding = const EdgeInsets.all(16.0),
+    this.padding = const EdgeInsets.all(AppSpacing.s16),
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isNarrow = size.width < 360;
-    final isShort = size.height < 640;
-final mgmtAspect = isShort ? 0.68 : (isNarrow ? 0.70 : 0.72);
-
-    
+    if (options.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: padding,
-      child: GridView.builder(
-        shrinkWrap: true,
-        itemCount: options.length,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: mgmtAspect,
-        ),
-        itemBuilder: (context, index) {
-          final o = options[index];
-          return ManagementCard(
-            label: o.label,
-            icon: o.icon,
-            onTap: o.onTap,
-            gradient: o.gradient,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+
+          // Responsive columns based on available container width
+          final int crossAxisCount;
+          final double childAspectRatio;
+
+          if (width >= 960) {
+            // Desktop layout: show all 4 (or 3) options in a single row
+            crossAxisCount = options.length >= 4 ? 4 : options.length;
+            childAspectRatio = 1.05;
+          } else if (width >= 600) {
+            // Tablet layout
+            crossAxisCount = options.length == 3 ? 3 : 2;
+            childAspectRatio = 1.0;
+          } else if (width < 340) {
+            // Narrow mobile (320px viewport)
+            crossAxisCount = 2;
+            childAspectRatio = 0.78;
+          } else {
+            // Standard mobile (360px - 599px)
+            crossAxisCount = 2;
+            childAspectRatio = 0.85;
+          }
+
+          final spacing = width < 360 ? AppSpacing.s8 : AppSpacing.s16;
+
+          return GridView.builder(
+            shrinkWrap: true,
+            itemCount: options.length,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              mainAxisSpacing: spacing,
+              crossAxisSpacing: spacing,
+              childAspectRatio: childAspectRatio,
+            ),
+            itemBuilder: (context, index) {
+              final o = options[index];
+              return ManagementCard(
+                label: o.label,
+                icon: o.icon,
+                onTap: o.onTap,
+                gradient: o.gradient,
+                subtitle: o.subtitle,
+              );
+            },
           );
         },
       ),
@@ -83,69 +114,125 @@ class ManagementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x30FFFFFF)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1A000000),
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 4,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: gradient),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: gradient),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 8)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.maxWidth;
+        final isCompact = cardWidth < 150;
+
+        final iconBoxSize = isCompact ? 42.0 : 48.0;
+        final iconSize = isCompact ? 22.0 : 26.0;
+        final paddingH = isCompact ? AppSpacing.s8 : AppSpacing.s12;
+        final paddingV = isCompact ? AppSpacing.s8 : AppSpacing.s12;
+
+        return AppCard(
+          padding: EdgeInsets.zero,
+          borderRadius: AppRadius.r16,
+          elevation: isDark ? 0.0 : 1.5,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.r16),
+            onTap: onTap,
+            child: Semantics(
+              button: true,
+              label: '$label. Tap to open module',
+              child: Stack(
+                children: [
+                  // Top gradient indicator bar
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 3.5,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: gradient),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(AppRadius.r16),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: paddingH,
+                      vertical: paddingV,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 4),
+                        // Gradient Icon Container
+                        Container(
+                          width: iconBoxSize,
+                          height: iconBoxSize,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: gradient,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.r12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: gradient.first.withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            icon,
+                            color: Colors.white,
+                            size: iconSize,
+                          ),
+                        ),
+                        SizedBox(
+                          height: isCompact ? AppSpacing.s8 : AppSpacing.s12,
+                        ),
+                        // Module Title
+                        Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isCompact ? 13.0 : 14.5,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimary,
+                            height: 1.2,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        // Subtitle / Prompt
+                        Text(
+                          subtitle ?? 'Tap to view',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isCompact ? 11.0 : 11.5,
+                            color:
+                                isDark
+                                    ? AppColors.textTertiaryDark
+                                    : AppColors.textTertiary,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              child: Icon(icon, color: Colors.white, size: 30),
             ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333),height: 1.25),
-            ),
-            const SizedBox(height: 4),
-            subtitle == null
-                ? const Text(
-                    'Tap to view and manage',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Color(0xFF666666), height: 1.3),
-                  )
-                : Text(
-                    subtitle!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666), height: 1.3),
-                  ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import 'dart:convert';
-
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:student_management/controller/base_dashboard_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,6 +9,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class StaffProfileController extends BaseDashboardController {
   @override
   Future<void> load() async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
     try {
       final supabase = Supabase.instance.client;
 
@@ -33,11 +37,12 @@ class StaffProfileController extends BaseDashboardController {
         final uid = Supabase.instance.client.auth.currentUser?.id;
         if (uid != null) {
           // Fetch from staff table
-          final row = await supabase
-              .from('staff')
-              .select('first_name')
-              .eq('user_id', uid)
-              .maybeSingle();
+          final row =
+              await supabase
+                  .from('staff')
+                  .select('first_name')
+                  .eq('user_id', uid)
+                  .maybeSingle();
 
           final fetched = (row?['first_name'] as String?)?.trim();
 
@@ -52,8 +57,13 @@ class StaffProfileController extends BaseDashboardController {
             }
           } else {
             // fallback to email local-part
-            final email = (jsonDecode(raw ?? '{}') as Map<String, dynamic>)['email'] as String?;
-            displayName = (email != null && email.contains('@')) ? email.split('@').first : 'Staff';
+            final email =
+                (jsonDecode(raw ?? '{}') as Map<String, dynamic>)['email']
+                    as String?;
+            displayName =
+                (email != null && email.contains('@'))
+                    ? email.split('@').first
+                    : 'Staff';
           }
         } else {
           displayName = 'Staff';
@@ -61,36 +71,41 @@ class StaffProfileController extends BaseDashboardController {
       } else {
         displayName = nameFromPrefs;
       }
-
-      notifyListeners();
     } catch (e) {
-      debugPrint('Error loading staff dashboard data: $e');
+      if (kDebugMode) {
+        debugPrint(
+          '[StaffProfileController] Error loading staff dashboard data: $e',
+        );
+      }
+      errorMessage = 'Failed to load staff dashboard data';
+    } finally {
+      isLoading = false;
       notifyListeners();
     }
   }
 
   @override
   List<Map<String, dynamic>> managementOptions(BuildContext context) => [
-        {
-          'label': 'Student Management',
-          'icon': Icons.person,
-          'action': () {
-            Navigator.pushNamed(context, '/studentManagement');
-          },
-        },
-        {
-          'label': 'Library Management',
-          'icon': Icons.library_books,
-          'action': () {
-            Navigator.pushNamed(context, '/libraryManagement');
-          },
-        },
-        {
-          'label': 'Fees Management',
-          'icon': Icons.attach_money,
-          'action': () {
-            Navigator.pushNamed(context, '/feesDashboard');
-          },
-        },
-      ];
+    {
+      'label': 'Student Management',
+      'icon': Icons.person,
+      'action': () {
+        context.push('/studentManagement');
+      },
+    },
+    {
+      'label': 'Library Management',
+      'icon': Icons.library_books,
+      'action': () {
+        context.push('/libraryManagement');
+      },
+    },
+    {
+      'label': 'Fees Management',
+      'icon': Icons.attach_money,
+      'action': () {
+        context.push('/feesDashboard');
+      },
+    },
+  ];
 }

@@ -1,74 +1,116 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreenController with ChangeNotifier {
- Future<void> checkSession(BuildContext context) async {
-  final prefs = await SharedPreferences.getInstance();
-  final String? userRole = prefs.getString('userRole');
-  final session = Supabase.instance.client.auth.currentSession;
+  final SupabaseClient? _clientOverride;
+  final SharedPreferences? _prefsOverride;
 
-  // Optional splash delay for animation/branding
-  await Future.delayed(const Duration(seconds: 2));
-  if (!context.mounted) return;
+  SplashScreenController({
+    SupabaseClient? clientOverride,
+    SharedPreferences? prefsOverride,
+  })  : _clientOverride = clientOverride,
+        _prefsOverride = prefsOverride;
 
-  // If a valid Supabase session is present, try to get role (cached or fetch live)
-  if (session != null) {
-    String? role = userRole;
+  Future<void> checkSession(BuildContext context) async {
+    final prefs = _prefsOverride ?? await SharedPreferences.getInstance();
 
-    // If role isn't cached, fetch it from the 'users' table and save in prefs
-    if (role == null) {
-      final response = await Supabase.instance.client
-          .from('users')
-          .select('role')
-          .eq('id', session.user.id)
-          .maybeSingle();
-      if (response != null && response['role'] != null) {
-        role = response['role'] as String;
-        await prefs.setString('userRole', role);
-        await prefs.setString('user_id', session.user.id);
+    SupabaseClient? client = _clientOverride;
+    if (client == null) {
+      try {
+        client = Supabase.instance.client;
+      } catch (_) {
+        client = null;
       }
     }
 
-    // Navigate based on the user's role
-    switch (role) {
+    // Optional splash delay for animation/branding
+    await Future.delayed(const Duration(seconds: 2));
+    if (!context.mounted) return;
+
+    if (client == null) {
+      await _clearCachedAuthPrefs(prefs);
+      if (!context.mounted) return;
+      context.go('/loginScreen');
+      return;
+    }
+
+    final session = client.auth.currentSession;
+
+    // Validate that session exists and is NOT expired
+    if (session == null || session.isExpired || session.user.id.isEmpty) {
+      await _clearCachedAuthPrefs(prefs);
+      if (!context.mounted) return;
+      context.go('/loginScreen');
+      return;
+    }
+
+    final userId = session.user.id;
+
+    // Authoritative role resolution: query PostgreSQL public.users strictly.
+    // If user profile record does not exist in the database, fail closed.
+    String? verifiedRole;
+    try {
+      final response = await client
+          .from('users')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+      if (response == null || response['role'] == null) {
+        await _clearCachedAuthPrefs(prefs);
+        if (!context.mounted) return;
+        context.go('/loginScreen');
+        return;
+      }
+
+      final dbRole = response['role'].toString().trim().toLowerCase();
+      if (dbRole.isEmpty) {
+        await _clearCachedAuthPrefs(prefs);
+        if (!context.mounted) return;
+        context.go('/loginScreen');
+        return;
+      }
+
+      verifiedRole = dbRole;
+    } catch (e) {
+      debugPrint('[SplashScreenController] Role fetch error: $e');
+      await _clearCachedAuthPrefs(prefs);
+      if (!context.mounted) return;
+      context.go('/loginScreen');
+      return;
+    }
+
+    // Update verified cache in SharedPreferences without clearing unrelated preferences
+    await prefs.setString('userRole', verifiedRole);
+    await prefs.setString('user_id', userId);
+
+    if (!context.mounted) return;
+
+    // Navigate safely based on the verified role
+    switch (verifiedRole) {
       case 'admin':
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/adminDashboard',
-          (_) => false,
-        );
+        context.go('/adminDashboard');
         break;
 
       case 'staff':
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/staffDashboard',
-          (_) => false,
-        );
+        context.go('/staffDashboard');
         break;
 
       case 'student':
-        final studentId = prefs.getString('user_id');
-        if (studentId != null&& studentId.isNotEmpty) {
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/studentDashboard',
-            (_) => false,
-            arguments: {'studentId': studentId},
-          );
-        } else {
-          Navigator.pushReplacementNamed(context, '/loginScreen');
-        }
+        context.go('/studentDashboard');
         break;
 
       default:
-        Navigator.pushReplacementNamed(context, '/loginScreen');
+        await _clearCachedAuthPrefs(prefs);
+        if (!context.mounted) return;
+        context.go('/loginScreen');
     }
-  } else {
-    // No session, so go to login
-    Navigator.pushReplacementNamed(context, '/loginScreen');
   }
-}
 
+  Future<void> _clearCachedAuthPrefs(SharedPreferences prefs) async {
+    await prefs.remove('userRole');
+    await prefs.remove('user_id');
+    await prefs.remove('studentId');
+  }
 }

@@ -3,7 +3,10 @@ import 'package:student_management/model/user_model.dart';
 import 'package:flutter/foundation.dart';
 
 class UserService {
-  final SupabaseClient client = Supabase.instance.client;
+  final SupabaseClient client;
+
+  UserService({SupabaseClient? client})
+      : client = client ?? Supabase.instance.client;
 
   // public.users table
   static const String tableName = 'users';
@@ -17,12 +20,15 @@ class UserService {
           .maybeSingle();
 
       if (response != null) {
-        debugPrint('>>> [UserService] User fetched: $response');
+        debugPrint('>>> [UserService] User record fetched successfully');
         return UserModel.fromJson(response);
       }
       return null;
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [UserService] Postgrest error fetching user by email [${e.code}]: ${e.message}');
+      return null;
     } catch (e) {
-      debugPrint('❌ Error fetching user by email: $e');
+      debugPrint('❌ [UserService] Error fetching user by email: ${e.runtimeType}');
       return null;
     }
   }
@@ -49,8 +55,11 @@ class UserService {
 
       final deleted = (res as List?)?.length ?? 0;
       debugPrint('>>> [UserService] Deleted profile rows (by id): $deleted');
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [UserService] Postgrest error deleting user profile [${e.code}]: ${e.message}');
+      rethrow;
     } catch (e) {
-      debugPrint('❌ Error deleting user profile by id: $e');
+      debugPrint('❌ [UserService] Error deleting user profile: ${e.runtimeType}');
       rethrow;
     }
   }
@@ -65,8 +74,11 @@ class UserService {
           .select();
       final deleted = (res as List?)?.length ?? 0;
       debugPrint('>>> [UserService] Deleted profile rows (by id): $deleted');
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [UserService] Postgrest error deleting user row [${e.code}]: ${e.message}');
+      rethrow;
     } catch (e) {
-      debugPrint('❌ Error deleting user row by id: $e');
+      debugPrint('❌ [UserService] Error deleting user row: ${e.runtimeType}');
       rethrow;
     }
   }

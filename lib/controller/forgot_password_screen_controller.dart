@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ForgotPasswordScreenController with ChangeNotifier {
@@ -17,7 +17,7 @@ class ForgotPasswordScreenController with ChangeNotifier {
   setLoading(true);
   try {
     await Supabase.instance.client.auth.resetPasswordForEmail(email);
-    debugPrint('Forgot: OTP send succeeded for $email');
+    debugPrint('Forgot: Password reset OTP request succeeded');
     return true;
   } on AuthException catch (e) {
     debugPrint('Forgot: OTP send failed (AuthException): ${e.message}');

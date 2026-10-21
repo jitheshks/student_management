@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -203,17 +204,19 @@ Future<void> _uploadAndSaveProfileImage() async {
     }
 
     final password = "$firstName@${dobInput.split('/').last}";
-    await supabase.auth.signUp(email: email, password: password);
-
-    final loginResponse = await supabase.auth.signInWithPassword(
+    // Step 2: Sign up staff in Supabase Auth safely (NO signInWithPassword to prevent session hijacking)
+    final signUpResponse = await supabase.auth.signUp(
       email: email,
       password: password,
+      data: {'role': 'staff'},
     );
-    if (loginResponse.user == null) {
-      throw Exception('Sign in failed after sign up');
+
+    final newStaffId = signUpResponse.user?.id;
+    if (newStaffId == null) {
+      throw Exception('Failed to obtain user ID after sign up.');
     }
 
-    staffId = loginResponse.user!.id;
+    staffId = newStaffId;
 
     await supabase.from('users').insert({
       'id': staffId,
@@ -238,7 +241,11 @@ Future<void> _uploadAndSaveProfileImage() async {
 
     _showSuccessMessage(context, 'Staff added successfully!');
     await Future.delayed(const Duration(milliseconds: 500));
-    Navigator.pushReplacementNamed(context, '/staffManagement');
+    if (context.canPop()) {
+      context.pop(true);
+    } else {
+      context.go('/staffManagement');
+    }
     resetForm();
   } catch (e) {
     _showErrorMessage(context, 'Error creating staff: $e');

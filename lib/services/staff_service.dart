@@ -4,16 +4,15 @@ import 'package:student_management/model/staff_model.dart';
 import 'package:student_management/services/user_service.dart';
 
 class StaffService {
-  StaffService({required this.userService});
+  StaffService({required this.userService, SupabaseClient? client})
+      : client = client ?? Supabase.instance.client;
 
-  final SupabaseClient client = Supabase.instance.client;
+  final SupabaseClient client;
   final UserService userService;
 
   /// Fetch all staff members
   Future<List<StaffModel>> fetchStaffs() async {
     debugPrint('>>> [StaffService] fetchStaffs CALLED');
-    final session = Supabase.instance.client.auth.currentSession;
-  debugPrint('Current JWT: ${session?.accessToken}');
     try {
       final response = await client
           .from('staff')
@@ -21,24 +20,24 @@ class StaffService {
               'id, user_id, first_name, last_name, profile_image_url, designation, email, address, phone, dob')
           .order('first_name', ascending: true);
 
-      debugPrint('>>> [StaffService] raw response: $response');
-
       final staffs = (response as List)
           .map((item) => StaffModel.fromJson(item))
           .toList();
 
       debugPrint('>>> [StaffService] returning ${staffs.length} staff records');
       return staffs;
-    } catch (e, st) {
-      debugPrint('❌ Error fetching staff: $e');
-      debugPrint('$st');
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [StaffService] Postgrest error fetching staff [${e.code}]: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('❌ [StaffService] Error fetching staff: ${e.runtimeType}');
       rethrow;
     }
   }
 
   /// Fetch single staff by email
   Future<StaffModel?> fetchStaffByEmail(String email) async {
-    debugPrint('>>> [StaffService] fetchStaffByEmail: $email');
+    debugPrint('>>> [StaffService] fetchStaffByEmail CALLED');
     try {
       final response = await client
           .from('staff')
@@ -51,9 +50,11 @@ class StaffService {
         return StaffModel.fromJson(response);
       }
       return null;
-    } catch (e, st) {
-      debugPrint('❌ Error fetching staff by email: $e');
-      debugPrint('$st');
+    } on PostgrestException catch (e) {
+      debugPrint('❌ [StaffService] Postgrest error fetching staff by email [${e.code}]: ${e.message}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ [StaffService] Error fetching staff by email: ${e.runtimeType}');
       return null;
     }
   }
@@ -100,7 +101,7 @@ class StaffService {
           debugPrint('>>> [StaffService] storage removed: $keyToDelete');
         }
       } catch (e) {
-        debugPrint('⚠️ [StaffService] Storage delete warning: $e');
+        debugPrint('⚠️ [StaffService] Storage delete warning: ${e.runtimeType}');
       }
 
       // 1) Delete staff rows
@@ -122,8 +123,10 @@ class StaffService {
               .select();
           final fallbackDeleted = (delFallback as List?)?.length ?? 0;
           debugPrint('>>> [StaffService] staff fallback rows deleted=$fallbackDeleted');
+        } on PostgrestException catch (e) {
+          debugPrint('⚠️ [StaffService] staff fallback delete failed [${e.code}]: ${e.message}');
         } catch (e) {
-          debugPrint('⚠️ [StaffService] staff fallback delete failed: $e');
+          debugPrint('⚠️ [StaffService] staff fallback delete failed: ${e.runtimeType}');
         }
       }
 
@@ -136,8 +139,10 @@ class StaffService {
             .select();
         final usersDeleted = (delUsers as List?)?.length ?? 0;
         debugPrint('>>> [StaffService] users rows deleted=$usersDeleted');
+      } on PostgrestException catch (e) {
+        debugPrint('⚠️ [StaffService] users delete failed [${e.code}]: ${e.message}');
       } catch (e) {
-        debugPrint('⚠️ [StaffService] users delete failed: $e');
+        debugPrint('⚠️ [StaffService] users delete failed: ${e.runtimeType}');
       }
 
       // 3) Delete Auth user via Edge Function
@@ -146,9 +151,8 @@ class StaffService {
     } on PostgrestException catch (e) {
       debugPrint('❌ [StaffService] Postgrest delete error: ${e.code} ${e.message}');
       rethrow;
-    } catch (e, st) {
-      debugPrint('❌ [StaffService] Unexpected delete error: $e');
-      debugPrint('$st');
+    } catch (e) {
+      debugPrint('❌ [StaffService] Unexpected delete error: ${e.runtimeType}');
       rethrow;
     }
   }
